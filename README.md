@@ -28,16 +28,16 @@ This project uses a modern, serverless architecture built entirely on Microsoft 
 
 ```mermaid
 flowchart LR
-    U[👤 User] --> W[🌐 Web Chat App<br/>(Flask / React)]
-    W --> S[🔍 Azure Cognitive Search<br/>(Vector + Semantic Index)]
-    S --> O[🤖 Azure OpenAI<br/>(Embeddings + LLM)]
+    U[User] --> W[Web Chat App\n(Flask / React)]
+    W --> S[Azure Cognitive Search\n(Vector + Semantic Index)]
+    S --> O[Azure OpenAI\n(Embeddings + LLM)]
     O --> W
     W -->|Answer with citations| U
 
     %% Data ingestion flow
-    B[🗂️ Azure Blob Storage<br/>(Regulatory PDFs)] --> D[📄 Azure Document Intelligence<br/>(OCR + Parsing)]
+    B[Azure Blob Storage\n(Regulatory PDFs)] --> D[Azure Document Intelligence\n(OCR + Parsing)]
     D --> S
-    S -.->|Indexing reference| B 
+    S -.->|Indexing reference| B
 ```
 
 
