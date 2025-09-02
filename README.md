@@ -3,6 +3,7 @@ A Retrieval-Augmented Generation (RAG) chatbot built with Azure AI Search and Az
 
 🎬 Live Demo
 
+![Live Chatbot Demo](docs/ChatBot%20Demo.gif)
 
 
 🎯 Problem Solved
