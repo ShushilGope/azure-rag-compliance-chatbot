@@ -26,6 +26,18 @@ This chatbot solves that problem by providing an intelligent, conversational int
 🛠️ Tech Stack & Architecture
 This project uses a modern, serverless architecture built entirely on Microsoft Azure.
 
+```mermaid
+flowchart LR
+    U[👤 User] --> W[🌐 Web Chat App<br/>(Flask / React)]
+    W --> S[🔍 Azure Cognitive Search<br/>(Vector + Semantic Index)]
+    S --> O[🤖 Azure OpenAI<br/>(Embeddings + LLM)]
+    O --> W
+    W -->|Answer with citations| U
+
+    %% Data ingestion flow
+    B[🗂️ Azure Blob Storage<br/>(Regulatory PDFs)] --> D[📄 Azure Document Intelligence<br/>(OCR + Parsing)]
+    D --> S
+    S -.->|Indexing reference| B
 
 
 
