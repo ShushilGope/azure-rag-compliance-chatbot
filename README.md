@@ -42,31 +42,17 @@ This project uses a modern, serverless architecture built entirely on Microsoft 
 The application follows a classic Retrieval-Augmented Generation (RAG) architecture:
 
 graph TD
-    subgraph "Data Ingestion & Indexing Pipeline"
-        direction LR
-        A["fa:fa-file-pdf Regulatory PDFs"] --> B["Azure Blob Storage"];
-        B --> C{"Azure AI Search <br> Import & Vectorize Wizard"};
-        C --> D["Azure AI Services <br> (OCR Skill)"];
-        C --> E["Azure OpenAI <br> (Embedding Model)"];
-        D --> C;
-        E --> C;
-        C --> F["fa:fa-search Search Index <br> (Chunks + Vectors)"];
+    subgraph "Data Ingestion & Indexing"
+        A["PDFs in Azure Blob Storage"] --> B{"Azure AI Search: Import Wizard"};
+        B --> C["Azure AI Services (OCR)"];
+        B --> D["Azure OpenAI (Embeddings)"];
+        B --> E["Search Index (Chunks + Vectors)"];
     end
 
-    subgraph "Query & Generation Pipeline"
-        direction LR
-        G["fa:fa-user User"] -- "1. Asks Question" --> H["fa:fa-window-maximize Web App <br> (index.html)"];
-        H -- "2. Embeds Question" --> I["Azure OpenAI <br> (Embedding Model)"];
-        I -- "3. Vector for Question" --> H;
-        H -- "4. Hybrid Search Query" --> J["fa:fa-search Search Index <br> (Chunks + Vectors)"];
-        J -- "5. Retrieves Relevant Chunks" --> H;
-        H -- "6. Augments Prompt (Question + Chunks)" --> K["Azure OpenAI <br> (Chat Model)"];
-        K -- "7. Generates Answer" --> H;
-        H -- "8. Displays Answer" --> G;
+    subgraph "Query & Answering"
+        F["User via Web App"] --> G["Azure OpenAI (Embeddings)"];
+        G -- "Vectorized Question" --> H["Azure AI Search (Hybrid Search)"];
+        H -- "Relevant Chunks" --> I["Azure OpenAI (Chat Model)"];
+        I -- "Generated Answer" --> F;
     end
-
-    style A fill:#d9534f,stroke:#333,stroke-width:2px
-    style F fill:#5bc0de,stroke:#333,stroke-width:2px
-    style J fill:#5bc0de,stroke:#333,stroke-width:2px
-    style G fill:#5cb85c,stroke:#333,stroke-width:2px
 
