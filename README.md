@@ -41,6 +41,7 @@ This project uses a modern, serverless architecture built entirely on Microsoft 
 
 The application follows a classic Retrieval-Augmented Generation (RAG) architecture:
 
+```mermaid
 graph TD
     subgraph "Data Ingestion & Indexing"
         A["PDFs in Azure Blob Storage"] --> B{"Azure AI Search: Import Wizard"};
@@ -55,3 +56,4 @@ graph TD
         H -- "Relevant Chunks" --> I["Azure OpenAI (Chat Model)"];
         I -- "Generated Answer" --> F;
     end
+```
