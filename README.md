@@ -37,7 +37,8 @@ flowchart LR
     %% Data ingestion flow
     B[🗂️ Azure Blob Storage<br/>(Regulatory PDFs)] --> D[📄 Azure Document Intelligence<br/>(OCR + Parsing)]
     D --> S
-    S -.->|Indexing reference| B
+    S -.->|Indexing reference| B 
+```
 
 
 
