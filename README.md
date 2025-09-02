@@ -55,4 +55,3 @@ graph TD
         H -- "Relevant Chunks" --> I["Azure OpenAI (Chat Model)"];
         I -- "Generated Answer" --> F;
     end
-
