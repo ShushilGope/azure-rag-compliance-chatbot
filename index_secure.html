@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure RAG Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chat-bubble {
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-bubble {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+        }
+        .assistant-bubble {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #1f2937; /* gray-800 */
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border-left-color: #3b82f6;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+    <div class="flex flex-col w-full max-w-2xl h-full md:h-[90vh] bg-white rounded-lg shadow-xl">
+        <header class="bg-gray-800 text-white p-4 rounded-t-lg flex items-center">
+            <h1 class="text-xl font-semibold">Regulatory Assistant Chatbot v3</h1>
+        </header>
+        
+        <main id="chat-window" class="flex-1 p-4 overflow-y-auto space-y-4">
+            <div class="flex justify-start">
+                <div class="chat-bubble assistant-bubble p-3 rounded-lg">
+                    <p>Hello! I am a freshly configured AI assistant. How can I help you today?</p>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="p-4 border-t border-gray-200 bg-white rounded-b-lg">
+            <form id="chat-form" class="flex items-center space-x-2">
+                <input type="text" id="user-input" class="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ask a question..." autocomplete="off">
+                <button type="submit" id="send-button" class="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400">
+                    Send
+                </button>
+            </form>
+        </footer>
+    </div>
+
+    <script>
+        // --- START: Configuration ---
+        // SECURITY NOTICE: Do not commit your secret keys to a public GitHub repository.
+        // Replace these placeholder values with your actual Azure service details to run the application.
+        
+        const AZURE_SEARCH_ENDPOINT = "YOUR_SEARCH_ENDPOINT_HERE";
+        const AZURE_SEARCH_KEY = "YOUR_SEARCH_KEY_HERE";
+        const AZURE_SEARCH_INDEX_NAME = "YOUR_SEARCH_INDEX_NAME_HERE";
+
+        const AZURE_OPENAI_ENDPOINT = "YOUR_OPENAI_ENDPOINT_HERE";
+        const AZURE_OPENAI_KEY = "YOUR_OPENAI_KEY_HERE";
+        
+        // Use the exact deployment names you created in your Azure OpenAI Studio
+        const AZURE_OPENAI_EMBEDDING_DEPLOYMENT = "YOUR_EMBEDDING_DEPLOYMENT_NAME";
+        const AZURE_OPENAI_CHAT_DEPLOYMENT = "YOUR_CHAT_DEPLOYMENT_NAME";
+        
+        const OPENAI_API_VERSION = "2024-02-01";
+        // --- END: Configuration ---
+
+
+        // --- DOM Elements ---
+        const chatWindow = document.getElementById('chat-window');
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+
+        // --- Event Listener for form submission ---
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const question = userInput.value.trim();
+            if (!question) return;
+
+            addMessage(question, 'user');
+            userInput.value = '';
+            setLoading(true);
+
+            try {
+                const answer = await getRagResponse(question);
+                addMessage(answer, 'assistant');
+            } catch (error) {
+                console.error("Error getting RAG response:", error);
+                addMessage("Sorry, I encountered an error. Please check the console for details and ensure your credentials are correct.", 'assistant');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // --- Core RAG Logic ---
+        async function getRagResponse(question) {
+            const queryEmbedding = await getEmbedding(question);
+            const searchResults = await searchIndex(question, queryEmbedding);
+            const context = searchResults.map(result => `Title: ${result.title || 'N/A'}\nContent: ${result.chunk}`).join('\n\n');
+            const finalAnswer = await getChatCompletion(question, context);
+            return finalAnswer;
+        }
+
+        // --- Helper Functions for API Calls ---
+        async function getEmbedding(text) {
+            const url = `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_EMBEDDING_DEPLOYMENT}/embeddings?api-version=${OPENAI_API_VERSION}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': AZURE_OPENAI_KEY },
+                body: JSON.stringify({ input: text })
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`Failed to get embedding. Status: ${response.status}. Body: ${errorBody}`);
+            }
+            const data = await response.json();
+            return data.data[0].embedding;
+        }
+
+        async function searchIndex(searchText, queryVector) {
+            const url = `${AZURE_SEARCH_ENDPOINT}/indexes/${AZURE_SEARCH_INDEX_NAME}/docs/search?api-version=2023-11-01`;
+            const body = {
+                search: searchText,
+                vectorQueries: [{ kind: "vector", vector: queryVector, k: 3, fields: "text_vector" }],
+                select: "title, chunk",
+                top: 3,
+                semanticConfiguration: "default"
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': AZURE_SEARCH_KEY },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`Failed to search index. Status: ${response.status}. Body: ${errorBody}`);
+            }
+            const data = await response.json();
+            return data.value;
+        }
+
+        async function getChatCompletion(question, context) {
+            const url = `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_CHAT_DEPLOYMENT}/chat/completions?api-version=${OPENAI_API_VERSION}`;
+            const system_prompt = `
+                You are a helpful AI assistant answering questions based on provided documents.
+                Answer the user's question based ONLY on the given sources.
+                If the information is not in the sources, say "I don't have enough information to answer."
+                Cite sources using the format [Title: document_title].
+            `;
+            const user_prompt = `Question: ${question}\n\nSources:\n${context}`;
+            const body = {
+                messages: [
+                    { "role": "system", "content": system_prompt },
+                    { "role": "user", "content": user_prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 800
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': AZURE_OPENAI_KEY },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`Failed to get chat completion. Status: ${response.status}. Body: ${errorBody}`);
+            }
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        // --- UI Helper Functions ---
+        function addMessage(text, sender) {
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble p-3 rounded-lg ${sender === 'user' ? 'user-bubble' : 'assistant-bubble'}`;
+            bubble.innerHTML = `<p>${text.replace(/\n/g, '<br>')}</p>`;
+            const messageContainer = document.createElement('div');
+            messageContainer.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+            messageContainer.appendChild(bubble);
+            chatWindow.appendChild(messageContainer);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function setLoading(isLoading) {
+            userInput.disabled = isLoading;
+            sendButton.disabled = isLoading;
+            sendButton.innerHTML = isLoading ? '<div class="spinner"></div>' : 'Send';
+        }
+    </script>
+</body>
+</html>
+
