@@ -4,7 +4,7 @@
 
 ### 🎬 Live Demo
 
-![Live Chatbot Demo](docs/demo.gif)
+![Live Chatbot Demo](demo.gif)
 
 ---
 
